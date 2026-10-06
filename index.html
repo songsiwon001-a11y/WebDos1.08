@@ -285,7 +285,7 @@
                     freeSpace: " 字节可用",
                     uploadPrompt: "文件选择窗口将打开…",
                     runUsage: "用法: RUN 文件名.exe",
-                    jsUsage: "用法: JAVASCRIPT 文件名.js (or JS filename.js)",
+                    jsUsage: "用法: JAVASCRIPT 文件名.js (或 JS 文件名.js)",
                     multiFileMatch: "找到多个同名文件，请包含完整路径:",
                     fileNotFoundErr: "未找到文件。请使用 TREE 查看已上传的文件。",
                     invFormat: "无法执行此文件格式。",
@@ -595,7 +595,7 @@
                     RECOVER: "RECOVER - 破損したディスクからデータを復元します。",
                     REM: "REM - バッチファイル内にコメントを記録します。",
                     REN: "REN 旧名 新名 - ファイル名を変更します。",
-                    RENAME: "RENAME 旧名 新名 - ファイル名を変更합니다。",
+                    RENAME: "RENAME 旧名 新名 - ファイル名を変更します。",
                     REPLACE: "REPLACE - ファイルを置き換えます。",
                     RMDIR: "RMDIR パス - ディレクトリを削除します。",
                     ROBOCOPY: "ROBOCOPY - 高機能ファイルコピーユーティリティです。",
@@ -659,7 +659,7 @@
                     EXIT: "EXIT - 退出命令解释程序或关闭游戏。",
                     FC: "FC - 比较两个文件并显示它们之间的不同。",
                     FIND: "FIND \"字符串\" 文件名 - 在文件中搜索文本字符串。",
-                    FINDSTR: "FINDSTR - 在 localized 文件中搜索字符串。",
+                    FINDSTR: "FINDSTR - 在文件中搜索字符串。",
                     FOR: "FOR - 对一组文件中的每个文件运行指定命令。",
                     FORMAT: "FORMAT - 格式化虚拟磁盘。",
                     FSUTIL: "FSUTIL - 文件系统实用工具。",
@@ -723,6 +723,222 @@
             let currentLang = 'en';
             const tr = k => (i18n[currentLang] && i18n[currentLang][k]) || i18n.en[k] || k;
             const getHelpDoc = cmd => (helpDocs[currentLang] && helpDocs[currentLang][cmd]) || helpDocs.en[cmd] || (cmd + " - DOS Command.");
+
+            // ===== 명령어 출력 메시지 4개국어 사전 =====
+            const X = {
+                en: {
+                    breakOn: 'BREAK is ON',
+                    bcdedit: 'Boot Configuration Data Store Editor (Simulated)\nIdentifier: {current}\ndevice: partition=C:\npath: \\Windows\\system32\\winload.exe',
+                    calling: 'Calling batch file: ',
+                    codePage: 'Active code page: ',
+                    chkntfs: 'C: is not dirty.',
+                    chkdskFiles: (n, b) => `${n} files taking ${b} bytes.`,
+                    compUsage: 'Usage: COMP file1 file2',
+                    compSize: 'Files are of different sizes.',
+                    compOk: 'Files compare OK',
+                    compErr: 'Compare error at byte offset 0',
+                    compact: 'All files in directory are uncompressed.',
+                    convert: 'Volume C: is already FAT32/VIRTUAL.',
+                    copyUsage: 'Usage: COPY source destination',
+                    date: 'Current date is ',
+                    time: 'Current time is ',
+                    diskpart: 'Microsoft DiskPart version 1.08\nDISK 0 : 32 MB Virtual Web Storage',
+                    doskey: 'DOSKEY buffer initialized.',
+                    drvHead: 'Module Name  Display Name          Driver Type    Link Date',
+                    drvRow: 'jsdos.sys    JS-DOS Emulator Engine Kernel Driver  10/02/2026',
+                    endlocal: 'Environment localization ended.',
+                    exitMsg: 'WEB-DOS session terminated.',
+                    findUsage: 'Usage: FIND "string" filename',
+                    forSim: 'FOR loop execution simulated.',
+                    fsutil: 'FSUTIL virtual filesystem ready.',
+                    goto: 'Jumping to label ',
+                    gpresult: 'Group Policy Info: Web Standalone Mode',
+                    icacls: 'Processed 1 files; Successfully processed 1 files.',
+                    ifEval: 'IF statement evaluated.',
+                    volume: 'Volume in drive C is ',
+                    moveUsage: 'Usage: MOVE source destination',
+                    mklink: 'Symbolic link created successfully.',
+                    mode: 'Status for device CON:\nColumns: 80, Lines: 25',
+                    openfiles: 'No open shared files in virtual environment.',
+                    pause: 'Press any key to continue . . .',
+                    popd: 'Restored directory stack.',
+                    print: n => 'Sending ' + n + ' to virtual spooler...',
+                    printDoc: 'document',
+                    recover: 'Disk recovery completed. 0 bad sectors found.',
+                    renUsage: 'Usage: RENAME oldname newname',
+                    setlocal: 'Environment localization started.',
+                    sc: 'Service Controller: 1 Services Running.',
+                    schtasks: 'Scheduled Tasks: No active tasks.',
+                    shutdown: 'System shutdown simulated.',
+                    subst: 'Drive substitution configured.',
+                    osName: 'OS Name:                   WEB-DOS 1.08 Virtual Shell',
+                    tlHead: 'Image Name                     PID Session Name        Mem Usage',
+                    taskkill: 'Process terminated successfully.',
+                    wmic: 'WMIC Virtual Console initialized.',
+                    curLang: 'Current language: ',
+                    verifyOff: 'VERIFY is off.'
+                },
+                kr: {
+                    breakOn: 'BREAK가 ON 상태입니다',
+                    bcdedit: '부팅 구성 데이터 저장소 편집기 (시뮬레이션)\n식별자: {current}\n장치: partition=C:\n경로: \\Windows\\system32\\winload.exe',
+                    calling: '배치 파일 호출 중: ',
+                    codePage: '활성 코드 페이지: ',
+                    chkntfs: 'C: 드라이브는 손상되지 않았습니다.',
+                    chkdskFiles: (n, b) => `${n}개 파일, ${b} 바이트 사용 중.`,
+                    compUsage: '사용법: COMP 파일1 파일2',
+                    compSize: '파일 크기가 서로 다릅니다.',
+                    compOk: '파일이 동일합니다',
+                    compErr: '바이트 오프셋 0에서 비교 오류',
+                    compact: '디렉토리의 모든 파일이 압축되어 있지 않습니다.',
+                    convert: 'C: 볼륨은 이미 FAT32/가상 형식입니다.',
+                    copyUsage: '사용법: COPY 원본 대상',
+                    date: '현재 날짜: ',
+                    time: '현재 시간: ',
+                    diskpart: 'Microsoft DiskPart 버전 1.08\n디스크 0 : 32 MB 가상 웹 저장소',
+                    doskey: 'DOSKEY 버퍼가 초기화되었습니다.',
+                    drvHead: '모듈 이름    표시 이름                       드라이버 종류  링크 날짜',
+                    drvRow: 'jsdos.sys    JS-DOS 에뮬레이터 엔진 커널 드라이버  10/02/2026',
+                    endlocal: '환경 변경 지역화가 종료되었습니다.',
+                    exitMsg: 'WEB-DOS 세션이 종료되었습니다.',
+                    findUsage: '사용법: FIND "문자열" 파일명',
+                    forSim: 'FOR 반복 실행이 시뮬레이션되었습니다.',
+                    fsutil: 'FSUTIL 가상 파일 시스템이 준비되었습니다.',
+                    goto: '레이블로 이동: ',
+                    gpresult: '그룹 정책 정보: 웹 독립 실행 모드',
+                    icacls: '1개 파일을 처리했습니다. 처리에 성공했습니다.',
+                    ifEval: 'IF 문이 평가되었습니다.',
+                    volume: 'C 드라이브의 볼륨: ',
+                    moveUsage: '사용법: MOVE 원본 대상',
+                    mklink: '심볼릭 링크가 생성되었습니다.',
+                    mode: '장치 CON: 상태\n열: 80, 줄: 25',
+                    openfiles: '가상 환경에 열린 공유 파일이 없습니다.',
+                    pause: '계속하려면 아무 키나 누르십시오 . . .',
+                    popd: '디렉토리 스택이 복원되었습니다.',
+                    print: n => n + ' 파일을 가상 스풀러로 보내는 중...',
+                    printDoc: '문서',
+                    recover: '디스크 복구가 완료되었습니다. 불량 섹터 0개.',
+                    renUsage: '사용법: RENAME 이전이름 새이름',
+                    setlocal: '환경 변경 지역화가 시작되었습니다.',
+                    sc: '서비스 컨트롤러: 1개 서비스 실행 중.',
+                    schtasks: '예약된 작업: 활성 작업 없음.',
+                    shutdown: '시스템 종료가 시뮬레이션되었습니다.',
+                    subst: '드라이브 대체가 구성되었습니다.',
+                    osName: 'OS 이름:                   WEB-DOS 1.08 가상 셸',
+                    tlHead: '이미지 이름                    PID 세션 이름        메모리 사용량',
+                    taskkill: '프로세스가 종료되었습니다.',
+                    wmic: 'WMIC 가상 콘솔이 초기화되었습니다.',
+                    curLang: '현재 언어: ',
+                    verifyOff: 'VERIFY가 꺼져 있습니다.'
+                },
+                jp: {
+                    breakOn: 'BREAK は ON です',
+                    bcdedit: 'ブート構成データ ストア エディター (シミュレーション)\n識別子: {current}\nデバイス: partition=C:\nパス: \\Windows\\system32\\winload.exe',
+                    calling: 'バッチファイルを呼び出し中: ',
+                    codePage: '現在のコードページ: ',
+                    chkntfs: 'C: は破損していません。',
+                    chkdskFiles: (n, b) => `${n} 個のファイル、${b} バイトを使用中。`,
+                    compUsage: '使用方法: COMP ファイル1 ファイル2',
+                    compSize: 'ファイルのサイズが異なります。',
+                    compOk: 'ファイルは同一です',
+                    compErr: 'バイトオフセット 0 で比較エラー',
+                    compact: 'ディレクトリ内のすべてのファイルは圧縮されていません。',
+                    convert: 'ボリューム C: はすでに FAT32/仮想 形式です。',
+                    copyUsage: '使用方法: COPY コピー元 コピー先',
+                    date: '現在の日付: ',
+                    time: '現在の時刻: ',
+                    diskpart: 'Microsoft DiskPart バージョン 1.08\nディスク 0 : 32 MB 仮想Webストレージ',
+                    doskey: 'DOSKEY バッファを初期化しました。',
+                    drvHead: 'モジュール名    表示名                      ドライバーの種類  リンク日',
+                    drvRow: 'jsdos.sys    JS-DOS エミュレーターエンジン カーネルドライバー  10/02/2026',
+                    endlocal: '環境変更のローカライズを終了しました。',
+                    exitMsg: 'WEB-DOS セッションを終了しました。',
+                    findUsage: '使用方法: FIND "文字列" ファイル名',
+                    forSim: 'FOR ループの実行をシミュレートしました。',
+                    fsutil: 'FSUTIL 仮想ファイルシステムの準備ができました。',
+                    goto: 'ラベルへ移動: ',
+                    gpresult: 'グループポリシー情報: Web スタンドアロンモード',
+                    icacls: '1 個のファイルを処理しました。正常に処理されました。',
+                    ifEval: 'IF 文を評価しました。',
+                    volume: 'ドライブ C のボリューム: ',
+                    moveUsage: '使用方法: MOVE 移動元 移動先',
+                    mklink: 'シンボリックリンクを作成しました。',
+                    mode: 'デバイス CON: の状態\n桁数: 80, 行数: 25',
+                    openfiles: '仮想環境に開いている共有ファイルはありません。',
+                    pause: '続行するには何かキーを押してください . . .',
+                    popd: 'ディレクトリスタックを復元しました。',
+                    print: n => n + ' を仮想スプーラーに送信中...',
+                    printDoc: 'ドキュメント',
+                    recover: 'ディスクの回復が完了しました。不良セクターは 0 個です。',
+                    renUsage: '使用方法: RENAME 旧名 新名',
+                    setlocal: '環境変更のローカライズを開始しました。',
+                    sc: 'サービスコントローラー: 1 個のサービスが実行中。',
+                    schtasks: 'スケジュールされたタスク: 有効なタスクはありません。',
+                    shutdown: 'システムのシャットダウンをシミュレートしました。',
+                    subst: 'ドライブの置換を設定しました。',
+                    osName: 'OS 名:                     WEB-DOS 1.08 仮想シェル',
+                    tlHead: 'イメージ名                     PID セッション名     メモリ使用量',
+                    taskkill: 'プロセスを終了しました。',
+                    wmic: 'WMIC 仮想コンソールを初期化しました。',
+                    curLang: '現在の言語: ',
+                    verifyOff: 'VERIFY はオフです。'
+                },
+                cn: {
+                    breakOn: 'BREAK 已开启',
+                    bcdedit: '启动配置数据存储编辑器 (模拟)\n标识符: {current}\n设备: partition=C:\n路径: \\Windows\\system32\\winload.exe',
+                    calling: '正在调用批处理文件: ',
+                    codePage: '活动代码页: ',
+                    chkntfs: 'C: 未损坏。',
+                    chkdskFiles: (n, b) => `${n} 个文件，占用 ${b} 字节。`,
+                    compUsage: '用法: COMP 文件1 文件2',
+                    compSize: '文件大小不同。',
+                    compOk: '文件比较结果相同',
+                    compErr: '在字节偏移 0 处比较出错',
+                    compact: '目录中的所有文件均未压缩。',
+                    convert: '卷 C: 已经是 FAT32/虚拟 格式。',
+                    copyUsage: '用法: COPY 源 目的',
+                    date: '当前日期: ',
+                    time: '当前时间: ',
+                    diskpart: 'Microsoft DiskPart 版本 1.08\n磁盘 0 : 32 MB 虚拟 Web 存储',
+                    doskey: 'DOSKEY 缓冲区已初始化。',
+                    drvHead: '模块名称    显示名称                    驱动程序类型  链接日期',
+                    drvRow: 'jsdos.sys    JS-DOS 模拟器引擎内核驱动程序  10/02/2026',
+                    endlocal: '环境变更的本地化已结束。',
+                    exitMsg: 'WEB-DOS 会话已终止。',
+                    findUsage: '用法: FIND "字符串" 文件名',
+                    forSim: '已模拟 FOR 循环执行。',
+                    fsutil: 'FSUTIL 虚拟文件系统已就绪。',
+                    goto: '跳转到标签: ',
+                    gpresult: '组策略信息: Web 独立模式',
+                    icacls: '已处理 1 个文件；成功处理 1 个文件。',
+                    ifEval: '已计算 IF 语句。',
+                    volume: '驱动器 C 的卷: ',
+                    moveUsage: '用法: MOVE 源 目的',
+                    mklink: '符号链接创建成功。',
+                    mode: '设备 CON: 的状态\n列: 80, 行: 25',
+                    openfiles: '虚拟环境中没有打开的共享文件。',
+                    pause: '请按任意键继续 . . .',
+                    popd: '已还原目录堆栈。',
+                    print: n => '正在将 ' + n + ' 发送到虚拟打印后台处理程序...',
+                    printDoc: '文档',
+                    recover: '磁盘恢复完成。发现 0 个坏扇区。',
+                    renUsage: '用法: RENAME 旧名 新名',
+                    setlocal: '环境变更的本地化已开始。',
+                    sc: '服务控制器: 1 个服务正在运行。',
+                    schtasks: '计划任务: 没有活动任务。',
+                    shutdown: '已模拟系统关机。',
+                    subst: '驱动器替换已配置。',
+                    osName: 'OS 名称:                   WEB-DOS 1.08 虚拟 Shell',
+                    tlHead: '映像名称                       PID 会话名           内存使用',
+                    taskkill: '进程已成功终止。',
+                    wmic: 'WMIC 虚拟控制台已初始化。',
+                    curLang: '当前语言: ',
+                    verifyOff: 'VERIFY 已关闭。'
+                }
+            };
+            const tx = (k, ...a) => {
+                const s = (X[currentLang] && X[currentLang][k] !== undefined) ? X[currentLang][k] : X.en[k];
+                return typeof s === 'function' ? s(...a) : s;
+            };
 
             function updateUIForLanguage() {
                 try {
@@ -793,7 +1009,7 @@
                 help(a){ 
                     if(a[0]) {
                         const targetCmd = a[0].toUpperCase();
-                        const doc = getHelpDoc(targetCmd);
+                        const doc = helpDocs.en[targetCmd] ? getHelpDoc(targetCmd) : null;
                         if(doc) {
                             out(doc, 'cyan');
                         } else {
@@ -818,7 +1034,7 @@
                     out('');
                 },
                 config(a){
-                    if(!a[0]) return out('Current language: ' + currentLang + ' (english/en, korean/kr, japanese/jp, chinese/cn)', 'hi');
+                    if(!a[0]) return out(tx('curLang') + currentLang + ' (english/en, korean/kr, japanese/jp, chinese/cn)', 'hi');
                     const arg = a[0].toLowerCase();
                     if(['en', 'english'].includes(arg)) { currentLang = 'en'; }
                     else if(['kr', 'ko', 'korean'].includes(arg)) { currentLang = 'kr'; }
@@ -832,10 +1048,10 @@
                 },
                 assoc(a){ out(getHelpDoc('ASSOC')); },
                 attrib(a){ out(getHelpDoc('ATTRIB')); },
-                break(a){ out('BREAK is ON'); },
-                bcdedit(){ out('Boot Configuration Data Store Editor (Simulated)\nIdentifier: {current}\ndevice: partition=C:\npath: \\Windows\\system32\\winload.exe'); },
+                break(a){ out(tx('breakOn')); },
+                bcdedit(){ out(tx('bcdedit')); },
                 cacls(a){ out(getHelpDoc('CACLS')); },
-                call(a){ if(a[0]) out('Calling batch file: ' + a[0]); else out(tr('reqParam'), 'err'); },
+                call(a){ if(a[0]) out(tx('calling') + a[0]); else out(tr('reqParam'), 'err'); },
                 cd(a){
                     a=a.filter(x=>!/^\/d$/i.test(x));
                     if(!a[0]) return out('C:\\' + cwd.join('\\').toUpperCase());
@@ -849,15 +1065,15 @@
                     cwd=p.map((x,i)=>{const f=[...dirs].find(d=>d===lc(p.slice(0,i+1)));const o=[...files.values()].map(v=>v.p.split('/')).find(s=>s[i]&&s.slice(0,i+1).join('/').toLowerCase()===f);return o?o[i]:x});
                 },
                 chdir(a){ cmds.cd(a); },
-                chcp(a){ if(a[0]) out('Active code page: ' + a[0]); else out('Active code page: 437'); },
+                chcp(a){ out(tx('codePage') + (a[0] || '437')); },
                 chkdsk(){
                     out(tr('chkdskType'));
                     out(tr('chkdskSerial'));
                     out(tr('chkdskTotal'));
-                    out(`${files.size} files taking ${Array.from(files.values()).reduce((a,b)=>a+b.d.length,0)} bytes.`);
+                    out(tx('chkdskFiles', files.size, Array.from(files.values()).reduce((a,b)=>a+b.d.length,0)));
                     out(tr('chkdskAvail'));
                 },
-                chkntfs(){ out('C: is not dirty.'); },
+                chkntfs(){ out(tx('chkntfs')); },
                 cls(){ O.innerHTML=''; },
                 cmd(){ out('Microsoft Windows DOS Shell [Version 1.08.437]'); },
                 color(a){
@@ -868,18 +1084,18 @@
                     else { T.style.color = '#aaa'; out(tr('colorReset')); }
                 },
                 comp(a){
-                    if(!a[0] || !a[1]) return out('Usage: COMP file1 file2', 'err');
+                    if(!a[0] || !a[1]) return out(tx('compUsage'), 'err');
                     const f1 = files.get(lc(resolve(a[0]))), f2 = files.get(lc(resolve(a[1])));
                     if(!f1 || !f2) return out(tr('fileNotFound'), 'err');
-                    if(f1.d.length !== f2.d.length) return out('Files are of different sizes.');
+                    if(f1.d.length !== f2.d.length) return out(tx('compSize'));
                     let same = true;
                     for(let i=0; i<f1.d.length; i++){ if(f1.d[i] !== f2.d[i]){ same=false; break; } }
-                    out(same ? 'Files compare OK' : 'Compare error at byte offset 0');
+                    out(same ? tx('compOk') : tx('compErr'));
                 },
-                compact(a){ out('All files in directory are uncompressed.'); },
-                convert(){ out('Volume C: is already FAT32/VIRTUAL.'); },
+                compact(a){ out(tx('compact')); },
+                convert(){ out(tx('convert')); },
                 copy(a){
-                    if(!a[0] || !a[1]) return out('Usage: COPY source destination', 'err');
+                    if(!a[0] || !a[1]) return out(tx('copyUsage'), 'err');
                     const srcKey = lc(resolve(a[0]));
                     const src = files.get(srcKey);
                     if(!src) return out(tr('fileNotFound'), 'err');
@@ -887,7 +1103,7 @@
                     addFile(destPath, new Uint8Array(src.d));
                     out(tr('fileCopied'), 'ok');
                 },
-                date(){ out('Current date is ' + new Date().toLocaleDateString()); },
+                date(){ out(tx('date') + new Date().toLocaleDateString()); },
                 del(a){
                     if(!a[0]) return out(tr('reqParam'), 'err');
                     const f=files.get(lc(resolve(a[0])));
@@ -949,15 +1165,15 @@
                     out(`  ${totalDirs}${tr('dirsStr')}`);
                     out(`  32,768,000${tr('freeSpace')}`);
                 },
-                diskpart(){ out('Microsoft DiskPart version 1.08\nDISK 0 : 32 MB Virtual Web Storage'); },
-                doskey(){ out('DOSKEY buffer initialized.'); },
-                driverquery(){ out('Module Name  Display Name          Driver Type    Link Date\n==========================================================='); out('jsdos.sys    JS-DOS Emulator Engine Kernel Driver  10/02/2026'); },
+                diskpart(){ out(tx('diskpart')); },
+                doskey(){ out(tx('doskey')); },
+                driverquery(){ out(tx('drvHead') + '\n' + '='.repeat(59)); out(tx('drvRow')); },
                 echo(a){ out(a.join(' ')); },
-                endlocal(){ out('Environment localization ended.'); },
-                exit(){ stopGame(); out('WEB-DOS session terminated.'); },
+                endlocal(){ out(tx('endlocal')); },
+                exit(){ stopGame(); out(tx('exitMsg')); },
                 fc(a){ cmds.comp(a); },
                 find(a){
-                    if(!a[0] || !a[1]) return out('Usage: FIND "string" filename', 'err');
+                    if(!a[0] || !a[1]) return out(tx('findUsage'), 'err');
                     const str = a[0].replace(/^"|"$/g, '');
                     const f = files.get(lc(resolve(a[1])));
                     if(!f) return out(tr('fileNotFound'), 'err');
@@ -967,17 +1183,17 @@
                     lines.forEach(l => out(l));
                 },
                 findstr(a){ cmds.find(a); },
-                for(a){ out('FOR loop execution simulated.'); },
+                for(a){ out(tx('forSim')); },
                 format(){
                     files.clear(); dirs.clear(); dirs.add(''); cwd=[];
                     out(tr('fmtDone'), 'ok');
                 },
-                fsutil(){ out('FSUTIL virtual filesystem ready.'); },
+                fsutil(){ out(tx('fsutil')); },
                 ftype(a){ out('txtfile=%SystemRoot%\\system32\\NOTEPAD.EXE %1'); },
-                goto(a){ out('Jumping to label ' + (a[0]||'END')); },
-                gpresult(){ out('Group Policy Info: Web Standalone Mode'); },
-                icacls(a){ out('Processed 1 files; Successfully processed 1 files.'); },
-                if(a){ out('IF statement evaluated.'); },
+                goto(a){ out(tx('goto') + (a[0]||'END')); },
+                gpresult(){ out(tx('gpresult')); },
+                icacls(a){ out(tx('icacls')); },
+                if(a){ out(tx('ifEval')); },
                 javascript(a){
                     if(!a[0]) return out(tr('jsUsage'), 'err');
                     const p = resolve(a[0]);
@@ -1018,28 +1234,28 @@
                     }
                 },
                 js(a){ cmds.javascript(a); },
-                label(a){ if(a[0]) volumeLabel = a[0]; out('Volume in drive C is ' + volumeLabel); },
+                label(a){ if(a[0]) volumeLabel = a[0]; out(tx('volume') + volumeLabel); },
                 md(a){ cmds.mkdir(a); },
                 mkdir(a){
                     if(!a[0]) return out(tr('reqParam'), 'err');
                     const p=resolve(a[0]); addDir(p.join('/')); out('');
                 },
-                mklink(a){ out('Symbolic link created successfully.'); },
-                mode(){ out('Status for device CON:\nColumns: 80, Lines: 25'); },
+                mklink(a){ out(tx('mklink')); },
+                mode(){ out(tx('mode')); },
                 more(a){ cmds.type(a); },
                 move(a){
-                    if(!a[0] || !a[1]) return out('Usage: MOVE source destination', 'err');
+                    if(!a[0] || !a[1]) return out(tx('moveUsage'), 'err');
                     cmds.copy(a);
                     cmds.del([a[0]]);
                 },
-                openfiles(){ out('No open shared files in virtual environment.'); },
+                openfiles(){ out(tx('openfiles')); },
                 path(a){
                     if(a[0]) envVars.set('PATH', a[0]);
                     out('PATH=' + envVars.get('PATH'));
                 },
-                pause(){ out('Press any key to continue . . .'); },
-                popd(){ out('Restored directory stack.'); },
-                print(a){ out('Sending ' + (a[0]||'document') + ' to virtual spooler...'); },
+                pause(){ out(tx('pause')); },
+                popd(){ out(tx('popd')); },
+                print(a){ out(tx('print', a[0] || tx('printDoc'))); },
                 prompt(a){ if(a[0]) envVars.set('PROMPT', a[0]); prompt(); },
                 pushd(a){ if(a[0]) cmds.cd(a); },
                 rd(a){ cmds.rmdir(a); },
@@ -1049,11 +1265,11 @@
                     if(dirs.has(k)) { dirs.delete(k); out(tr('dirRemoved'), 'ok'); }
                     else out(tr('invDir'), 'err');
                 },
-                recover(){ out('Disk recovery completed. 0 bad sectors found.'); },
+                recover(){ out(tx('recover')); },
                 rem(){},
                 ren(a){ cmds.rename(a); },
                 rename(a){
-                    if(!a[0] || !a[1]) return out('Usage: RENAME oldname newname', 'err');
+                    if(!a[0] || !a[1]) return out(tx('renUsage'), 'err');
                     const srcKey = lc(resolve(a[0]));
                     const src = files.get(srcKey);
                     if(!src) return out(tr('fileNotFound'), 'err');
@@ -1072,29 +1288,29 @@
                     const [k,v] = a.join(' ').split('=');
                     if(k) envVars.set(k.toUpperCase(), v||'');
                 },
-                setlocal(){ out('Environment localization started.'); },
-                sc(){ out('Service Controller: 1 Services Running.'); },
-                schtasks(){ out('Scheduled Tasks: No active tasks.'); },
+                setlocal(){ out(tx('setlocal')); },
+                sc(){ out(tx('sc')); },
+                schtasks(){ out(tx('schtasks')); },
                 shift(){},
-                shutdown(){ out('System shutdown simulated.'); },
+                shutdown(){ out(tx('shutdown')); },
                 sort(a){ cmds.type(a); },
                 start(a){ if(a[0]) cmds.run(a); },
-                subst(a){ out('Drive substitution configured.'); },
+                subst(a){ out(tx('subst')); },
                 systeminfo(){
                     out(tr('sysInfoHost'));
-                    out('OS Name:                   WEB-DOS 1.08 Virtual Shell');
+                    out(tx('osName'));
                     out(tr('sysInfoOS'));
                     out(tr('sysInfoType'));
                     out(tr('sysInfoMem'));
                 },
                 tasklist(){
-                    out('Image Name                     PID Session Name        Mem Usage');
+                    out(tx('tlHead'));
                     out('========================= ======== ================ ============');
                     out('COMMAND.COM                   1001 Console                   2,048 K');
                     out('JSDOS_KERNEL.EXE              2004 Console                  16,384 K');
                 },
-                taskkill(){ out('Process terminated successfully.'); },
-                time(){ out('Current time is ' + new Date().toLocaleTimeString()); },
+                taskkill(){ out(tx('taskkill')); },
+                time(){ out(tx('time') + new Date().toLocaleTimeString()); },
                 title(a){ if(a[0]) document.title = a.join(' '); },
                 tree(){
                     const walk=(k,pre)=>{
@@ -1109,9 +1325,9 @@
                     out(new TextDecoder('latin1').decode(f.d));
                 },
                 ver(){ out(tr('verInfo'), 'hi'); },
-                verify(){ out('VERIFY is off.'); },
-                vol(){ out('Volume in drive C is ' + volumeLabel); out('Volume Serial Number is 437A-9F01'); },
-                wmic(){ out('WMIC Virtual Console initialized.'); },
+                verify(){ out(tx('verifyOff')); },
+                vol(){ out(tx('volume') + volumeLabel); out(tr('chkdskSerial')); },
+                wmic(){ out(tx('wmic')); },
                 xcopy(a){ cmds.copy(a); },
                 doctor(){
                     out('Host: ' + location.protocol + '//' + location.hostname + (inClaude ? '  ' + tr('docClaude') : ''));
