@@ -368,6 +368,7 @@
                     GPRESULT: "GPRESULT - Displays Group Policy info.",
                     HELP: "HELP [command] - Provides Help info.",
                     ICACLS: "ICACLS - Manages file permissions.",
+                    IPCONFIG: "IPCONFIG - Displays IP address, subnet, gateway and DNS for Ethernet and Wi-Fi.",
                     IF: "IF - Performs conditional processing.",
                     JAVASCRIPT: "JAVASCRIPT filename.js (JS) - Runs JS file.",
                     LABEL: "LABEL - Creates or edits disk volume label.",
@@ -462,6 +463,7 @@
                     GPRESULT: "GPRESULT - 그룹 정책 정보를 표시합니다.",
                     HELP: "HELP [명령어] - DOS 명령어 도움말을 제공합니다.",
                     ICACLS: "ICACLS - 파일 권한을 관리합니다.",
+                    IPCONFIG: "IPCONFIG - 이더넷/Wi-Fi의 IP 주소, 서브넷, 게이트웨이, DNS 정보를 표시합니다.",
                     IF: "IF - 배치 프로그램에서 조건부 처리를 수행합니다.",
                     JAVASCRIPT: "JAVASCRIPT 파일명.js (JS) - 업로드된 자바스크립트 파일을 실행합니다.",
                     LABEL: "LABEL - 디스크의 볼륨 라벨을 작성 또는 변경합니다.",
@@ -556,6 +558,7 @@
                     GPRESULT: "GPRESULT - グループポリシー情報を表示します。",
                     HELP: "HELP [コマンド] - コマンドのヘルプを表示します。",
                     ICACLS: "ICACLS - ファイル権限を管理します。",
+                    IPCONFIG: "IPCONFIG - イーサネット/Wi-FiのIPアドレス、サブネット、ゲートウェイ、DNS情報を表示します。",
                     IF: "IF - 条件付き処理を実行します。",
                     JAVASCRIPT: "JAVASCRIPT ファイル名.js (JS) - JavaScriptを実行します。",
                     LABEL: "LABEL - ボリュームラベルを作成/変更します。",
@@ -650,6 +653,7 @@
                     GPRESULT: "GPRESULT - 显示组策略信息。",
                     HELP: "HELP [命令] - 提供 Windows 命令的帮助信息。",
                     ICACLS: "ICACLS - 显示、修改、备份或还原文件权限。",
+                    IPCONFIG: "IPCONFIG - 显示以太网/Wi-Fi 的 IP 地址、子网、网关和 DNS 信息。",
                     IF: "IF - 在批处理程序中执行条件处理。",
                     JAVASCRIPT: "JAVASCRIPT 文件名.js (JS) - 执行上传的 JavaScript 文件。",
                     LABEL: "LABEL - 创建、更改或删除磁盘的卷标。",
@@ -1070,6 +1074,96 @@
                 } catch(e) {}
             }
 
+            // ===== IPCONFIG =====
+            const IPT = {
+                en: { title:'WEB-DOS IP Configuration', eth:'Ethernet adapter Ethernet:', wifi:'Wireless LAN adapter Wi-Fi:', wan:'Internet (WAN) connection:',
+                      host:'Host Name', suffix:'Connection-specific DNS Suffix', v6:'IPv6 Address', v4:'IPv4 Address', mask:'Subnet Mask', gw:'Default Gateway', dns:'DNS Servers',
+                      media:'Media State', disc:'Media disconnected', pub:'Public IP Address', na:'Unavailable (blocked by browser)' },
+                kr: { title:'WEB-DOS IP 구성', eth:'이더넷 어댑터 이더넷:', wifi:'무선 LAN 어댑터 Wi-Fi:', wan:'인터넷 (WAN) 연결:',
+                      host:'호스트 이름', suffix:'연결별 DNS 접미사', v6:'IPv6 주소', v4:'IPv4 주소', mask:'서브넷 마스크', gw:'기본 게이트웨이', dns:'DNS 서버',
+                      media:'미디어 상태', disc:'미디어 연결 끊김', pub:'공용 IP 주소', na:'사용할 수 없음 (브라우저에서 차단됨)' },
+                jp: { title:'WEB-DOS IP 構成', eth:'イーサネット アダプター イーサネット:', wifi:'ワイヤレス LAN アダプター Wi-Fi:', wan:'インターネット (WAN) 接続:',
+                      host:'ホスト名', suffix:'接続固有の DNS サフィックス', v6:'IPv6 アドレス', v4:'IPv4 アドレス', mask:'サブネット マスク', gw:'デフォルト ゲートウェイ', dns:'DNS サーバー',
+                      media:'メディアの状態', disc:'メディアは接続されていません', pub:'パブリック IP アドレス', na:'利用不可 (ブラウザーによりブロック)' },
+                cn: { title:'WEB-DOS IP 配置', eth:'以太网适配器 以太网:', wifi:'无线局域网适配器 Wi-Fi:', wan:'互联网 (WAN) 连接:',
+                      host:'主机名', suffix:'连接特定的 DNS 后缀', v6:'IPv6 地址', v4:'IPv4 地址', mask:'子网掩码', gw:'默认网关', dns:'DNS 服务器',
+                      media:'媒体状态', disc:'媒体已断开连接', pub:'公用 IP 地址', na:'不可用 (被浏览器阻止)' }
+            };
+            const ipt = k => (IPT[currentLang] && IPT[currentLang][k]) || IPT.en[k];
+            const ipRow = (label, val) => {
+                let l = '   ' + label + ' ';
+                while (l.length < 36) l += (l.length % 2 ? '.' : ' ');
+                return l + ': ' + val;
+            };
+            function getLocalIPs() {
+                return new Promise(resolve => {
+                    const res = { v4: [], v6: [], pub: [], mdns: false };
+                    let pc = null, done = false;
+                    const finish = () => { if (done) return; done = true; try { pc && pc.close(); } catch (e) {} resolve(res); };
+                    try {
+                        pc = new RTCPeerConnection({ iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }] });
+                        pc.createDataChannel('');
+                        pc.onicecandidate = e => {
+                            if (!e || !e.candidate) return finish();
+                            const t = (e.candidate.candidate || '').split(' ');
+                            const addr = t[4] || '', typ = t[7] || '';
+                            if (/\.local$/i.test(addr)) { res.mdns = true; return; }
+                            const isV4 = /^\d{1,3}(\.\d{1,3}){3}$/.test(addr);
+                            if (typ === 'srflx') { if (!res.pub.includes(addr)) res.pub.push(addr); return; }
+                            if (isV4) { if (!res.v4.includes(addr)) res.v4.push(addr); }
+                            else if (addr.includes(':') && !res.v6.includes(addr)) res.v6.push(addr);
+                        };
+                        pc.createOffer().then(o => pc.setLocalDescription(o)).catch(finish);
+                        setTimeout(finish, 3500);
+                    } catch (e) { finish(); }
+                });
+            }
+            async function getPublicIP() {
+                for (const u of ['https://api.ipify.org?format=json', 'https://api64.ipify.org?format=json', 'https://api.country.is/', 'https://get.geojs.io/v1/ip.json', 'https://ipapi.co/json/', 'https://ifconfig.co/json']) {
+                    try {
+                        const ctl = new AbortController();
+                        const t = setTimeout(() => ctl.abort(), 2500);
+                        const r = await fetch(u, { signal: ctl.signal, cache: 'no-store' });
+                        clearTimeout(t);
+                        if (!r.ok) continue;
+                        const j = await r.json();
+                        if (j && j.ip) return j.ip;
+                    } catch (e) {}
+                }
+                return null;
+            }
+            async function ipconfig() {
+                const [loc, pubFetched] = await Promise.all([getLocalIPs(), getPublicIP()]);
+                const pub = pubFetched || loc.pub[0] || null;
+                const ct = ((navigator.connection || {}).type || '').toLowerCase();
+                const active = ct === 'wifi' ? 'wifi' : 'eth';
+                const v4 = loc.v4.find(x => !/^169\.254\./.test(x)) || loc.v4[0] || null;
+                const v6 = loc.v6.find(x => !/^fe80/i.test(x)) || loc.v6[0] || null;
+                const gw = v4 ? v4.split('.').slice(0, 3).join('.') + '.1' : null;
+                out(ipt('title'), 'hi');
+                out('');
+                out(ipRow(ipt('host'), 'WEB-DOS-PC'));
+                out('');
+                for (const ad of ['eth', 'wifi']) {
+                    out(ipt(ad), 'hi');
+                    out('');
+                    if (ad !== active) { out(ipRow(ipt('media'), ipt('disc'))); out(''); continue; }
+                    out(ipRow(ipt('suffix'), ''));
+                    if (v6) out(ipRow(ipt('v6'), v6));
+                    out(ipRow(ipt('v4'), v4 || pub || ipt('na')));
+                    if (v4) {
+                        out(ipRow(ipt('mask'), '255.255.255.0'));
+                        out(ipRow(ipt('gw'), gw));
+                        out(ipRow(ipt('dns'), gw));
+                    }
+                    out('');
+                }
+                out(ipt('wan'), 'hi');
+                out('');
+                out(ipRow(ipt('pub'), pub || ipt('na')));
+                out('');
+            }
+
             const cmds={
                 help(a){ 
                     if(a[0]) {
@@ -1413,6 +1507,7 @@
                 vol(){ out(tx('volume') + volumeLabel); out(tr('chkdskSerial')); },
                 wmic(){ out(tx('wmic')); },
                 xcopy(a){ cmds.copy(a); },
+                ipconfig,
                 doctor(){
                     out('Host: ' + location.protocol + '//' + location.hostname + (inClaude ? '  ' + tr('docClaude') : ''));
                     out(tr('workerLoad') + (typeof Worker) + '   ' + tr('jszipLoad') + typeof JSZip + '   Dos: ' + (typeof window.Dos !== 'undefined' ? typeof window.Dos : 'undefined'));
@@ -2028,7 +2123,7 @@ ${pre}${useCd&&dirp?'cd '+dirp+'\n':''}${runLine}
                 ingest(all);
             };
 
-            I.onkeydown=e=>{
+            I.onkeydown=async e=>{
                 if(e.key==='Enter'){
                     const l=I.value.trim();
                     out($('pr').textContent+I.value);
@@ -2038,7 +2133,10 @@ ${pre}${useCd&&dirp?'cd '+dirp+'\n':''}${runLine}
                         const [c,...a]=l.split(/\s+/);
                         if(/^[a-z]:$/i.test(c) && !a.length){ cmds.cd([c[0].toLowerCase()==='c' ? 'c:' : '\\'+c[0]]); prompt(); T.scrollTop=T.scrollHeight; return; }
                         const fn=cmds[c.toLowerCase()];
-                        fn?fn(a):out("'"+c+"'"+tr('notCommand'),'err');
+                        if(fn){
+                            const r=fn(a);
+                            if(fn===cmds.ipconfig){ I.disabled=true; try{ await r; }finally{ I.disabled=false; I.focus(); } }
+                        } else out("'"+c+"'"+tr('notCommand'),'err');
                     }
                     prompt(); T.scrollTop=T.scrollHeight;
                 }else if(e.key==='ArrowUp'){
