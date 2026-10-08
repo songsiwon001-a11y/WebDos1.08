@@ -1167,7 +1167,7 @@
                 out('');
             }
 
-            const TUNE_DEF={cpu:'auto',cycles:'auto',rate:'auto',block:'auto',pre:'auto',worker:'on'};
+            const TUNE_DEF={cpu:'auto',cycles:'auto',rate:'auto',block:'auto',pre:'auto',worker:'on',midi:'default',sb:'sb16',opl:'auto',core:'auto'};
             const tune=Object.assign({},TUNE_DEF);
             try{ Object.assign(tune, JSON.parse(loadSetting('tune')||'{}')); }catch(e){}
 
@@ -1640,12 +1640,13 @@
                     try{ const c=JSON.parse(loadSetting('calib')||'null'); if(c){ const e=effective(c);
                         out('DEVICE tier='+c.tier+' score='+c.score+' ('+c.mops+' Mops, cores='+c.cores+(c.mobile?', mobile':'')+', audio='+c.nativeRate+'Hz)','yellow');
                         out('USING  cpu='+e.cpu+'  cycles='+e.cycles+'  rate='+e.rate+'  block='+e.block+'  pre='+e.pre,'ok'); } }catch(e){}
-                    out('TUNE  cpu='+tune.cpu+'  cycles='+tune.cycles+'  rate='+tune.rate+'  block='+tune.block+'  pre='+tune.pre+'  worker='+tune.worker,'cyan');
+                    out('TUNE  cpu='+tune.cpu+'  cycles='+tune.cycles+'  rate='+tune.rate+'  block='+tune.block+'  pre='+tune.pre+'  worker='+tune.worker+'  midi='+tune.midi+'  sb='+tune.sb+'  opl='+tune.opl+'  core='+tune.core,'cyan');
                 };
                 if(!a.length){
                     show();
                     out('TUNE cpu=auto|386|486|pentium|pentium_slow  cycles=auto|max|20000|fixed_20000','hi');
                     out('TUNE rate=11025|22050|44100|48000  block=1024|2048|4096  pre=10..500  worker=on|off','hi');
+                    out('TUNE midi=default|none  sb=sb16|sbpro2|sb1|none  opl=auto|opl2|opl3|none  core=auto|normal|dynamic|simple','hi');
                     out('TUNE CALIBRATE (re-measure this device)   TUNE RESET (back to auto)   [applies on next RUN]','hi');
                     return;
                 }
@@ -1659,7 +1660,11 @@
                     rate:v=>v==='auto'||['8000','11025','16000','22050','32000','44100','48000'].includes(v),
                     block:v=>v==='auto'||['256','512','1024','2048','4096','8192'].includes(v),
                     pre:v=>v==='auto'||(/^\d{1,3}$/.test(v)&&+v>=10&&+v<=500),
-                    worker:v=>/^(on|off)$/i.test(v)
+                    worker:v=>/^(on|off)$/i.test(v),
+                    midi:v=>/^(default|none)$/i.test(v),
+                    sb:v=>/^(sb16|sbpro2|sbpro1|sb2|sb1|none)$/i.test(v),
+                    opl:v=>/^(auto|opl2|dualopl2|opl3|none)$/i.test(v),
+                    core:v=>/^(auto|normal|dynamic|simple)$/i.test(v)
                 };
                 for(const t of a){
                     const m=/^(\w+)=(\S+)$/.exec(t);
@@ -1782,7 +1787,7 @@ autolock=false
 [dosbox]
 captures=capture
 [cpu]
-core=auto
+core=${tune.core}
 cputype=${eff.cpu}
 cycles=${eff.cycles}
 cycleup=1000
@@ -1794,15 +1799,15 @@ blocksize=${eff.block}
 prebuffer=${eff.pre}
 [midi]
 mpu401=intelligent
-mididevice=default
+mididevice=${tune.midi}
 [sblaster]
-sbtype=sb16
+sbtype=${tune.sb}
 sbbase=220
 irq=7
 dma=1
 hdma=5
 sbmix=true
-oplmode=auto
+oplmode=${tune.opl}
 oplemu=default
 oplrate=${eff.rate}
 [gus]
