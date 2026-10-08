@@ -1756,15 +1756,15 @@
             function makeBundle(entries){
                 const enc=new TextEncoder(), parts=[], cd=[]; let off=0;
                 for(const e of entries){
-                    const nm=enc.encode(e.name), d=e.data, crc=d.length?crc32(d):0;
+                    const nm=enc.encode(e.name), d=e.data, crc=d.length?crc32(d):0, fl=nm.length===e.name.length?0:0x0800;
                     const lh=new DataView(new ArrayBuffer(30));
-                    lh.setUint32(0,0x04034b50,true); lh.setUint16(4,20,true); lh.setUint16(6,0x0800,true);
+                    lh.setUint32(0,0x04034b50,true); lh.setUint16(4,20,true); lh.setUint16(6,fl,true);
                     lh.setUint16(12,0x21,true); lh.setUint32(14,crc,true); lh.setUint32(18,d.length,true); lh.setUint32(22,d.length,true); lh.setUint16(26,nm.length,true);
                     parts.push(new Uint8Array(lh.buffer),nm,d);
                     const ch=new DataView(new ArrayBuffer(46));
-                    ch.setUint32(0,0x02014b50,true); ch.setUint16(4,20,true); ch.setUint16(6,20,true); ch.setUint16(8,0x0800,true);
+                    ch.setUint32(0,0x02014b50,true); ch.setUint16(4,0x031E,true); ch.setUint16(6,20,true); ch.setUint16(8,fl,true);
                     ch.setUint16(14,0x21,true); ch.setUint32(16,crc,true); ch.setUint32(20,d.length,true); ch.setUint32(24,d.length,true); ch.setUint16(28,nm.length,true);
-                    ch.setUint32(38,e.name.endsWith('/')?0x10:0,true); ch.setUint32(42,off,true);
+                    ch.setUint32(38,(e.name.endsWith('/')?0x41ED0010:0x81A40000)>>>0,true); ch.setUint32(42,off,true);
                     cd.push(new Uint8Array(ch.buffer),nm);
                     off+=30+nm.length+d.length;
                 }
