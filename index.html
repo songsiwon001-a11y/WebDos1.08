@@ -1167,65 +1167,9 @@
                 out('');
             }
 
-            const TUNE_DEF={cpu:'auto',cycles:'auto',rate:'auto',block:'auto',pre:'auto',worker:'off',midi:'default',sb:'sb16',opl:'auto',core:'auto'};
+            const TUNE_DEF={cpu:'auto',cycles:'auto',rate:'44100',block:'2048',pre:'100',worker:'on'};
             const tune=Object.assign({},TUNE_DEF);
-            try{ Object.assign(tune, JSON.parse(loadSetting('tune7')||'{}')); }catch(e){}
-
-            // ===== Device auto-profile =====
-            const CALIB_VER=1;
-            const snap=(v,list)=>list.reduce((b,x)=>Math.abs(x-v)<Math.abs(b-v)?x:b,list[0]);
-            async function benchCPU(){
-                // integer + float mix, ~120ms; returns million loop iterations per second
-                const t0=performance.now(); let n=0, x=1, f=0.5;
-                while(performance.now()-t0<120){
-                    for(let i=0;i<20000;i++){ x=(x*1664525+1013904223)|0; f=f*0.999+(x&255)*0.001; }
-                    n+=20000;
-                    if(n%400000===0) await sleep(0);
-                }
-                return n/(performance.now()-t0)/1000;
-            }
-            function nativeRate(){
-                try{ const c=new (window.AudioContext||window.webkitAudioContext)(); const r=c.sampleRate; c.close(); return r; }catch(e){ return 44100; }
-            }
-            async function calibrate(force){
-                if(!force){
-                    try{ const c=JSON.parse(loadSetting('calib')||'null'); if(c&&c.v===CALIB_VER) return c; }catch(e){}
-                }
-                const runs=[]; for(let i=0;i<3;i++){ runs.push(await benchCPU()); await sleep(20); }
-                runs.sort((a,b)=>a-b);
-                const mops=runs[1];                                   // median
-                const mobile=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Mac/.test(navigator.platform));
-                const cores=navigator.hardwareConcurrency||2, mem=navigator.deviceMemory||4;
-                // score: raw speed, penalised for mobile / few cores / low memory
-                let score=mops*(mobile?0.6:1)*(cores<4?0.8:1)*(mem<4?0.8:1);
-                let tier=score>=300?'high':score>=120?'mid':'low';
-                const prof={
-                    v:CALIB_VER, mops:+mops.toFixed(0), score:+score.toFixed(0), tier, mobile, cores, mem,
-                    nativeRate:nativeRate(), iso:!!window.crossOriginIsolated
-                };
-                saveSetting('calib',JSON.stringify(prof));
-                return prof;
-            }
-            // tier -> concrete values (user TUNE overrides win)
-            function resolveProfile(pf){
-                const rate=String(snap(pf.nativeRate,[22050,44100,48000]));
-                // Speed scales with the device but is clamped: never above CYC_MAX (games run too fast / waste CPU),
-                // never below CYC_MIN (games too slow). Fixed cycles = same game speed on every device.
-                const CYC_MIN=10000, CYC_MAX=30000;
-                const cyc=Math.min(CYC_MAX,Math.max(CYC_MIN,Math.round(pf.score*80/1000)*1000));
-                const T={
-                    high:{cpu:'pentium', block:'2048', pre:'100'},
-                    mid: {cpu:'486',     block:'2048', pre:'150'},
-                    low: {cpu:'486',     block:'4096', pre:'250'}
-                }[pf.tier];
-                return {cpu:T.cpu,cycles:'fixed '+cyc,rate:pf.tier==='low'?'22050':rate,block:T.block,pre:T.pre};
-            }
-            const effective=(pf)=>{
-                const a=resolveProfile(pf), e={};
-                for(const k of ['cpu','cycles','rate','block','pre'])
-                    e[k]=tune[k]==='auto'?a[k]:(k==='cycles'&&/^\d+$/.test(tune[k])?'fixed '+tune[k]:tune[k].replace(/_/g,' '));
-                return e;
-            };
+            try{ Object.assign(tune, JSON.parse(loadSetting('tune')||'{}')); }catch(e){}
 
             const cmds={
                 help(a){ 
@@ -1637,41 +1581,30 @@
 
             cmds.tune=function(a){
                 const show=()=>{
-                    try{ const c=JSON.parse(loadSetting('calib')||'null'); if(c){ const e=effective(c);
-                        out('DEVICE tier='+c.tier+' score='+c.score+' ('+c.mops+' Mops, cores='+c.cores+(c.mobile?', mobile':'')+', audio='+c.nativeRate+'Hz)','yellow');
-                        out('USING  cpu='+e.cpu+'  cycles='+e.cycles+'  rate='+e.rate+'  block='+e.block+'  pre='+e.pre,'ok'); } }catch(e){}
-                    out('TUNE  cpu='+tune.cpu+'  cycles='+tune.cycles+'  rate='+tune.rate+'  block='+tune.block+'  pre='+tune.pre+'  worker='+tune.worker+'  midi='+tune.midi+'  sb='+tune.sb+'  opl='+tune.opl+'  core='+tune.core,'cyan');
+                    out('TUNE  cpu='+tune.cpu+'  cycles='+tune.cycles+'  rate='+tune.rate+'  block='+tune.block+'  pre='+tune.pre+'  worker='+tune.worker,'cyan');
                 };
                 if(!a.length){
                     show();
                     out('TUNE cpu=auto|386|486|pentium|pentium_slow  cycles=auto|max|20000|fixed_20000','hi');
                     out('TUNE rate=11025|22050|44100|48000  block=1024|2048|4096  pre=10..500  worker=on|off','hi');
-                    out('TUNE midi=default|none  sb=sb16|sbpro2|sb1|none  opl=auto|opl2|opl3|none  core=auto|normal|dynamic|simple','hi');
-                    out('TUNE CALIBRATE (re-measure this device)   TUNE RESET (back to auto)   [applies on next RUN]','hi');
+                    out('TUNE RESET   (applies on next RUN)','hi');
                     return;
                 }
-                if(/^calibrate$/i.test(a[0])){
-                    return calibrate(true).then(()=>{ out('Calibrated.','ok'); show(); });
-                }
-                if(/^reset$/i.test(a[0])){ Object.assign(tune,TUNE_DEF); saveSetting('tune7',''); show(); return; }
+                if(/^reset$/i.test(a[0])){ Object.assign(tune,TUNE_DEF); saveSetting('tune',''); show(); return; }
                 const ok={
                     cpu:v=>/^(auto|386|486|pentium|pentium_slow|pentium_mmx)$/i.test(v),
                     cycles:v=>/^(auto|max|\d+|fixed_\d+|auto_\d+(_limit_\d+)?)$/i.test(v),
-                    rate:v=>v==='auto'||['8000','11025','16000','22050','32000','44100','48000'].includes(v),
-                    block:v=>v==='auto'||['256','512','1024','2048','4096','8192'].includes(v),
-                    pre:v=>v==='auto'||(/^\d{1,3}$/.test(v)&&+v>=10&&+v<=500),
-                    worker:v=>/^(on|off)$/i.test(v),
-                    midi:v=>/^(default|none)$/i.test(v),
-                    sb:v=>/^(sb16|sbpro2|sbpro1|sb2|sb1|none)$/i.test(v),
-                    opl:v=>/^(auto|opl2|dualopl2|opl3|none)$/i.test(v),
-                    core:v=>/^(auto|normal|dynamic|simple)$/i.test(v)
+                    rate:v=>['8000','11025','16000','22050','32000','44100','48000'].includes(v),
+                    block:v=>['256','512','1024','2048','4096','8192'].includes(v),
+                    pre:v=>/^\d{1,3}$/.test(v)&&+v>=10&&+v<=500,
+                    worker:v=>/^(on|off)$/i.test(v)
                 };
                 for(const t of a){
                     const m=/^(\w+)=(\S+)$/.exec(t);
                     if(!m||!ok[m[1].toLowerCase()]||!ok[m[1].toLowerCase()](m[2])) return out('Invalid: '+t,'err');
                     tune[m[1].toLowerCase()]=m[2].toLowerCase();
                 }
-                saveSetting('tune7',JSON.stringify(tune));
+                saveSetting('tune',JSON.stringify(tune));
                 show();
                 out('Saved. Applies the next time you RUN a program.','ok');
             };
@@ -1701,11 +1634,9 @@
                 document.head.appendChild(e);
             });
 
-            // js-dos v7.5.0 (dist = js-dos.js + js-dos.css + wdosbox.js + wdosbox.wasm in one folder)
             const SRC=[
-                {n:'jsDelivr v7',js:'https://cdn.jsdelivr.net/npm/js-dos@7.5.0/dist/js-dos.js',css:'https://cdn.jsdelivr.net/npm/js-dos@7.5.0/dist/js-dos.css',pre:'https://cdn.jsdelivr.net/npm/js-dos@7.5.0/dist/'},
-                {n:'unpkg v7',js:'https://unpkg.com/js-dos@7.5.0/dist/js-dos.js',css:'https://unpkg.com/js-dos@7.5.0/dist/js-dos.css',pre:'https://unpkg.com/js-dos@7.5.0/dist/'},
-                {n:'js-dos.com v7',js:'https://js-dos.com/v7/build/js-dos.js',css:'https://js-dos.com/v7/build/js-dos.css',pre:'https://js-dos.com/v7/build/'}
+                {n:'v8.js-dos.com',js:'https://v8.js-dos.com/latest/js-dos.js',css:'https://v8.js-dos.com/latest/js-dos.css',pre:''},
+                {n:'jsDelivr',js:'https://cdn.jsdelivr.net/npm/js-dos@8/dist/js-dos.js',css:'https://cdn.jsdelivr.net/npm/js-dos@8/dist/js-dos.css',pre:'https://cdn.jsdelivr.net/npm/emulators@8/dist/'}
             ];
             let dosP=null, dosSrc=null;
 
@@ -1750,30 +1681,6 @@
             window.addEventListener('keydown',remapKey,true);
             window.addEventListener('keyup',remapKey,true);
 
-            // ===== in-memory .jsdos bundle (ZIP, stored/no compression) =====
-            const CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
-            const crc32=b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRC_T[(c^b[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0};
-            function makeBundle(entries){
-                const enc=new TextEncoder(), parts=[], cd=[]; let off=0;
-                for(const e of entries){
-                    const nm=enc.encode(e.name), d=e.data, crc=d.length?crc32(d):0, fl=nm.length===e.name.length?0:0x0800;
-                    const lh=new DataView(new ArrayBuffer(30));
-                    lh.setUint32(0,0x04034b50,true); lh.setUint16(4,20,true); lh.setUint16(6,fl,true);
-                    lh.setUint16(12,0x21,true); lh.setUint32(14,crc,true); lh.setUint32(18,d.length,true); lh.setUint32(22,d.length,true); lh.setUint16(26,nm.length,true);
-                    parts.push(new Uint8Array(lh.buffer),nm,d);
-                    const ch=new DataView(new ArrayBuffer(46));
-                    ch.setUint32(0,0x02014b50,true); ch.setUint16(4,0x031E,true); ch.setUint16(6,20,true); ch.setUint16(8,fl,true);
-                    ch.setUint16(14,0x21,true); ch.setUint32(16,crc,true); ch.setUint32(20,d.length,true); ch.setUint32(24,d.length,true); ch.setUint16(28,nm.length,true);
-                    ch.setUint32(38,(e.name.endsWith('/')?0x41ED0010:0x81A40000)>>>0,true); ch.setUint32(42,off,true);
-                    cd.push(new Uint8Array(ch.buffer),nm);
-                    off+=30+nm.length+d.length;
-                }
-                const cdSize=cd.reduce((n,x)=>n+x.length,0), end=new DataView(new ArrayBuffer(22));
-                end.setUint32(0,0x06054b50,true); end.setUint16(8,entries.length,true); end.setUint16(10,entries.length,true); end.setUint32(12,cdSize,true); end.setUint32(16,off,true);
-                return new Blob([...parts,...cd,new Uint8Array(end.buffer)],{type:'application/zip'});
-            }
-            let bundleUrl=null;
-
             async function launch(path, set){
                 try{ await ensureDos(); }catch(e){
                     out(e.message||'Error','err');
@@ -1806,41 +1713,39 @@
                     else if(kind.boot) runLine='boot '+list.map(q).join(' ');
                     else { runLine='imgmount a '+list.map(q).join(' ')+' -t floppy\na:'; out(tx('imgMountA'), 'cyan'); }
                 }
-                const prof=await calibrate(false), eff=effective(prof);
-                out('Auto-tuned for this device: '+prof.tier+' (cycles='+eff.cycles+', '+eff.rate+'Hz)','cyan');
                 const conf=`[sdl]
 autolock=false
 [dosbox]
 captures=capture
 [cpu]
-core=${tune.core}
-cputype=${eff.cpu}
-cycles=${eff.cycles}
+core=auto
+cputype=${tune.cpu}
+cycles=${/^\d+$/.test(tune.cycles)?'fixed '+tune.cycles:tune.cycles.replace(/_/g,' ')}
 cycleup=1000
 cycledown=1000
 [mixer]
 nosound=false
-rate=${eff.rate}
-blocksize=${eff.block}
-prebuffer=${eff.pre}
+rate=${tune.rate}
+blocksize=${tune.block}
+prebuffer=${tune.pre}
 [midi]
 mpu401=intelligent
-mididevice=${tune.midi}
+mididevice=default
 [sblaster]
-sbtype=${tune.sb}
+sbtype=sb16
 sbbase=220
 irq=7
 dma=1
 hdma=5
 sbmix=true
-oplmode=${tune.opl}
+oplmode=auto
 oplemu=default
-oplrate=${eff.rate}
+oplrate=${tune.rate}
 [gus]
 gus=false
 [speaker]
 pcspeaker=true
-pcrate=${eff.rate}
+pcrate=${tune.rate}
 tandy=off
 disney=off
 [autoexec]
@@ -1851,34 +1756,7 @@ ${pre}${useCd&&dirp?'cd '+dirp+'\n':''}${runLine}
                 $('dos').innerHTML=''; $('dos').appendChild(host); $('game').style.display='block';
                 $('sw').style.display=diskCount>1?'block':'none'; updateSwapLabel();
                 try{
-                    const enc=new TextEncoder(), none=new Uint8Array(0), dirs=new Set(), ents=[{name:'.jsdos/',data:none},{name:'.jsdos/dosbox.conf',data:enc.encode(conf)}];
-                    for(const v of sel){
-                        const rp=rel(v.p).replace(/^\/+/,'');
-                        const seg=rp.split('/'); seg.pop();
-                        let acc=''; for(const sgm of seg){ acc+=sgm+'/'; if(!dirs.has(acc)){ dirs.add(acc); ents.push({name:acc,data:none}); } }
-                        ents.push({name:rp,data:v.d instanceof Uint8Array?v.d:new Uint8Array(v.d)});
-                    }
-                    if(bundleUrl) URL.revokeObjectURL(bundleUrl);
-                    bundleUrl=URL.createObjectURL(makeBundle(ents));
-                    if(window.emulators && dosSrc.pre) window.emulators.pathPrefix=dosSrc.pre;
-                    // Worker mode needs wdosbox.js on the SAME origin as this page; from a CDN the browser blocks it.
-                    // Default = main-thread ("dosboxDirect"). TUNE worker=on tries the worker and falls back automatically.
-                    const startPlayer=async(fn)=>{
-                        host.innerHTML='';
-                        player=window.Dos(host,{
-                            style:'none', noSideBar:true, noFullscreen:true, noSocialLinks:true, preventUnload:false, clickToStart:false,
-                            emulatorFunction:fn
-                        });
-                        await player.run(bundleUrl);
-                    };
-                    if(tune.worker==='on'){
-                        try{ await startPlayer('dosboxWorker'); }
-                        catch(e){
-                            out('Worker mode unavailable ('+(e&&e.message||e).toString().slice(0,60)+'...) -> main thread','yellow');
-                            try{ if(player&&player.stop) await player.stop(); }catch(_){}
-                            await startPlayer('dosboxDirect');
-                        }
-                    } else await startPlayer('dosboxDirect');
+                    player = await window.Dos(host,{dosboxConf:conf,initFs:sel.map(v=>({path:rel(v.p),contents:v.d.slice()})),autoStart:true,workerThread:(!inClaude && tune.worker!=='off'),...(dosSrc.pre?{pathPrefix:dosSrc.pre,pathSuffix:''}:{})});
                 }catch(e){$('game').style.display='none';out('Error: '+(e&&e.message||e),'err')}
             }
 
@@ -1888,7 +1766,7 @@ ${pre}${useCd&&dirp?'cd '+dirp+'\n':''}${runLine}
                 stopping=true;
                 try{
                     try{ if(player && typeof player.stop === 'function') await player.stop(); }catch(e){}
-                    $('dos').innerHTML=''; player=null; keyRemap=null; if(bundleUrl){ try{URL.revokeObjectURL(bundleUrl)}catch(e){} bundleUrl=null; } $('game').style.display='none'; $('sw').style.display='none'; diskCount=0; diskIdx=1;
+                    $('dos').innerHTML=''; player=null; keyRemap=null; $('game').style.display='none'; $('sw').style.display='none'; diskCount=0; diskIdx=1;
                     out(tr('gameClosed')); I.focus();
                 }finally{ stopping=false; }
             }
@@ -1899,7 +1777,7 @@ ${pre}${useCd&&dirp?'cd '+dirp+'\n':''}${runLine}
                 if(diskCount<2 || $('game').style.display!=='block' || !player) return;
                 let ci=null;
                 try{
-                    ci = player.ciPromise ? await player.ciPromise : (typeof player.ci==='function' ? await player.ci() : await player.ci);
+                    ci = typeof player.ci==='function' ? await player.ci() : await player.ci;
                     if(!ci && player.layers) ci = player.layers.ci || null;
                 }catch(e){ ci=null; }
                 if(ci && typeof ci.sendKeyEvent==='function'){
