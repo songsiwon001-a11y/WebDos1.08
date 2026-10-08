@@ -412,6 +412,7 @@
                     TIME: "TIME - Displays system time.",
                     TITLE: "TITLE - Sets window title.",
                     TREE: "TREE - Graphically displays directory structure.",
+                    TUNE: "TUNE [cpu=|cycles=|rate=|block=|pre=|worker=] - Adjusts emulator speed/audio settings (saved).",
                     TYPE: "TYPE filename - Displays text file contents.",
                     LOAD: "LOAD A-Z [-v] - Loads files from a GitHub folder (a-z except c).",
                     UPLOAD: "UPLOAD [-f] - Uploads files or directory zip.",
@@ -1166,6 +1167,10 @@
                 out('');
             }
 
+            const TUNE_DEF={cpu:'auto',cycles:'auto',rate:'44100',block:'2048',pre:'100',worker:'on'};
+            const tune=Object.assign({},TUNE_DEF);
+            try{ Object.assign(tune, JSON.parse(loadSetting('tune')||'{}')); }catch(e){}
+
             const cmds={
                 help(a){ 
                     if(a[0]) {
@@ -1574,6 +1579,36 @@
                 }
             };
 
+            cmds.tune=function(a){
+                const show=()=>{
+                    out('TUNE  cpu='+tune.cpu+'  cycles='+tune.cycles+'  rate='+tune.rate+'  block='+tune.block+'  pre='+tune.pre+'  worker='+tune.worker,'cyan');
+                };
+                if(!a.length){
+                    show();
+                    out('TUNE cpu=auto|386|486|pentium|pentium_slow  cycles=auto|max|20000|fixed_20000','hi');
+                    out('TUNE rate=11025|22050|44100|48000  block=1024|2048|4096  pre=10..500  worker=on|off','hi');
+                    out('TUNE RESET   (applies on next RUN)','hi');
+                    return;
+                }
+                if(/^reset$/i.test(a[0])){ Object.assign(tune,TUNE_DEF); saveSetting('tune',''); show(); return; }
+                const ok={
+                    cpu:v=>/^(auto|386|486|pentium|pentium_slow|pentium_mmx)$/i.test(v),
+                    cycles:v=>/^(auto|max|\d+|fixed_\d+|auto_\d+(_limit_\d+)?)$/i.test(v),
+                    rate:v=>['8000','11025','16000','22050','32000','44100','48000'].includes(v),
+                    block:v=>['256','512','1024','2048','4096','8192'].includes(v),
+                    pre:v=>/^\d{1,3}$/.test(v)&&+v>=10&&+v<=500,
+                    worker:v=>/^(on|off)$/i.test(v)
+                };
+                for(const t of a){
+                    const m=/^(\w+)=(\S+)$/.exec(t);
+                    if(!m||!ok[m[1].toLowerCase()]||!ok[m[1].toLowerCase()](m[2])) return out('Invalid: '+t,'err');
+                    tune[m[1].toLowerCase()]=m[2].toLowerCase();
+                }
+                saveSetting('tune',JSON.stringify(tune));
+                show();
+                out('Saved. Applies the next time you RUN a program.','ok');
+            };
+
             let shutTimer=null, offAt=0;
             function powerOff(restart){
                 try{ stopGame(); }catch(e){}
@@ -1684,15 +1719,15 @@ autolock=false
 captures=capture
 [cpu]
 core=auto
-cputype=486
-cycles=fixed 20000
+cputype=${tune.cpu}
+cycles=${/^\d+$/.test(tune.cycles)?'fixed '+tune.cycles:tune.cycles.replace(/_/g,' ')}
 cycleup=1000
 cycledown=1000
 [mixer]
 nosound=false
-rate=22050
-blocksize=2048
-prebuffer=150
+rate=${tune.rate}
+blocksize=${tune.block}
+prebuffer=${tune.pre}
 [midi]
 mpu401=intelligent
 mididevice=default
@@ -1705,12 +1740,12 @@ hdma=5
 sbmix=true
 oplmode=auto
 oplemu=default
-oplrate=22050
+oplrate=${tune.rate}
 [gus]
 gus=false
 [speaker]
 pcspeaker=true
-pcrate=22050
+pcrate=${tune.rate}
 tandy=off
 disney=off
 [autoexec]
@@ -1721,7 +1756,7 @@ ${pre}${useCd&&dirp?'cd '+dirp+'\n':''}${runLine}
                 $('dos').innerHTML=''; $('dos').appendChild(host); $('game').style.display='block';
                 $('sw').style.display=diskCount>1?'block':'none'; updateSwapLabel();
                 try{
-                    player = await window.Dos(host,{dosboxConf:conf,initFs:sel.map(v=>({path:rel(v.p),contents:v.d.slice()})),autoStart:true,workerThread:!inClaude,...(dosSrc.pre?{pathPrefix:dosSrc.pre,pathSuffix:''}:{})});
+                    player = await window.Dos(host,{dosboxConf:conf,initFs:sel.map(v=>({path:rel(v.p),contents:v.d.slice()})),autoStart:true,workerThread:(!inClaude && tune.worker!=='off'),...(dosSrc.pre?{pathPrefix:dosSrc.pre,pathSuffix:''}:{})});
                 }catch(e){$('game').style.display='none';out('Error: '+(e&&e.message||e),'err')}
             }
 
