@@ -1701,9 +1701,11 @@
                 document.head.appendChild(e);
             });
 
+            // js-dos v7.5.0 (dist = js-dos.js + js-dos.css + wdosbox.js + wdosbox.wasm in one folder)
             const SRC=[
-                {n:'v8.js-dos.com',js:'https://v8.js-dos.com/latest/js-dos.js',css:'https://v8.js-dos.com/latest/js-dos.css',pre:''},
-                {n:'jsDelivr',js:'https://cdn.jsdelivr.net/npm/js-dos@8/dist/js-dos.js',css:'https://cdn.jsdelivr.net/npm/js-dos@8/dist/js-dos.css',pre:'https://cdn.jsdelivr.net/npm/emulators@8/dist/'}
+                {n:'jsDelivr v7',js:'https://cdn.jsdelivr.net/npm/js-dos@7.5.0/dist/js-dos.js',css:'https://cdn.jsdelivr.net/npm/js-dos@7.5.0/dist/js-dos.css',pre:'https://cdn.jsdelivr.net/npm/js-dos@7.5.0/dist/'},
+                {n:'unpkg v7',js:'https://unpkg.com/js-dos@7.5.0/dist/js-dos.js',css:'https://unpkg.com/js-dos@7.5.0/dist/js-dos.css',pre:'https://unpkg.com/js-dos@7.5.0/dist/'},
+                {n:'js-dos.com v7',js:'https://js-dos.com/v7/build/js-dos.js',css:'https://js-dos.com/v7/build/js-dos.css',pre:'https://js-dos.com/v7/build/'}
             ];
             let dosP=null, dosSrc=null;
 
@@ -1747,6 +1749,30 @@
             };
             window.addEventListener('keydown',remapKey,true);
             window.addEventListener('keyup',remapKey,true);
+
+            // ===== in-memory .jsdos bundle (ZIP, stored/no compression) =====
+            const CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+            const crc32=b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRC_T[(c^b[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0};
+            function makeBundle(entries){
+                const enc=new TextEncoder(), parts=[], cd=[]; let off=0;
+                for(const e of entries){
+                    const nm=enc.encode(e.name), d=e.data, crc=d.length?crc32(d):0;
+                    const lh=new DataView(new ArrayBuffer(30));
+                    lh.setUint32(0,0x04034b50,true); lh.setUint16(4,20,true); lh.setUint16(6,0x0800,true);
+                    lh.setUint16(12,0x21,true); lh.setUint32(14,crc,true); lh.setUint32(18,d.length,true); lh.setUint32(22,d.length,true); lh.setUint16(26,nm.length,true);
+                    parts.push(new Uint8Array(lh.buffer),nm,d);
+                    const ch=new DataView(new ArrayBuffer(46));
+                    ch.setUint32(0,0x02014b50,true); ch.setUint16(4,20,true); ch.setUint16(6,20,true); ch.setUint16(8,0x0800,true);
+                    ch.setUint16(14,0x21,true); ch.setUint32(16,crc,true); ch.setUint32(20,d.length,true); ch.setUint32(24,d.length,true); ch.setUint16(28,nm.length,true);
+                    ch.setUint32(38,e.name.endsWith('/')?0x10:0,true); ch.setUint32(42,off,true);
+                    cd.push(new Uint8Array(ch.buffer),nm);
+                    off+=30+nm.length+d.length;
+                }
+                const cdSize=cd.reduce((n,x)=>n+x.length,0), end=new DataView(new ArrayBuffer(22));
+                end.setUint32(0,0x06054b50,true); end.setUint16(8,entries.length,true); end.setUint16(10,entries.length,true); end.setUint32(12,cdSize,true); end.setUint32(16,off,true);
+                return new Blob([...parts,...cd,new Uint8Array(end.buffer)],{type:'application/zip'});
+            }
+            let bundleUrl=null;
 
             async function launch(path, set){
                 try{ await ensureDos(); }catch(e){
@@ -1825,7 +1851,21 @@ ${pre}${useCd&&dirp?'cd '+dirp+'\n':''}${runLine}
                 $('dos').innerHTML=''; $('dos').appendChild(host); $('game').style.display='block';
                 $('sw').style.display=diskCount>1?'block':'none'; updateSwapLabel();
                 try{
-                    player = await window.Dos(host,{dosboxConf:conf,initFs:sel.map(v=>({path:rel(v.p),contents:v.d.slice()})),autoStart:true,workerThread:(!inClaude && tune.worker!=='off'),...(dosSrc.pre?{pathPrefix:dosSrc.pre,pathSuffix:''}:{})});
+                    const enc=new TextEncoder(), none=new Uint8Array(0), dirs=new Set(), ents=[{name:'.jsdos/',data:none},{name:'.jsdos/dosbox.conf',data:enc.encode(conf)}];
+                    for(const v of sel){
+                        const rp=rel(v.p).replace(/^\/+/,'');
+                        const seg=rp.split('/'); seg.pop();
+                        let acc=''; for(const sgm of seg){ acc+=sgm+'/'; if(!dirs.has(acc)){ dirs.add(acc); ents.push({name:acc,data:none}); } }
+                        ents.push({name:rp,data:v.d instanceof Uint8Array?v.d:new Uint8Array(v.d)});
+                    }
+                    if(bundleUrl) URL.revokeObjectURL(bundleUrl);
+                    bundleUrl=URL.createObjectURL(makeBundle(ents));
+                    if(window.emulators && dosSrc.pre) window.emulators.pathPrefix=dosSrc.pre;
+                    player = window.Dos(host,{
+                        style:'none', noSideBar:true, noFullscreen:true, noSocialLinks:true, preventUnload:false, clickToStart:false,
+                        emulatorFunction:(!inClaude && tune.worker!=='off')?'dosboxWorker':'dosboxDirect'
+                    });
+                    await player.run(bundleUrl);
                 }catch(e){$('game').style.display='none';out('Error: '+(e&&e.message||e),'err')}
             }
 
@@ -1835,7 +1875,7 @@ ${pre}${useCd&&dirp?'cd '+dirp+'\n':''}${runLine}
                 stopping=true;
                 try{
                     try{ if(player && typeof player.stop === 'function') await player.stop(); }catch(e){}
-                    $('dos').innerHTML=''; player=null; keyRemap=null; $('game').style.display='none'; $('sw').style.display='none'; diskCount=0; diskIdx=1;
+                    $('dos').innerHTML=''; player=null; keyRemap=null; if(bundleUrl){ try{URL.revokeObjectURL(bundleUrl)}catch(e){} bundleUrl=null; } $('game').style.display='none'; $('sw').style.display='none'; diskCount=0; diskIdx=1;
                     out(tr('gameClosed')); I.focus();
                 }finally{ stopping=false; }
             }
@@ -1846,7 +1886,7 @@ ${pre}${useCd&&dirp?'cd '+dirp+'\n':''}${runLine}
                 if(diskCount<2 || $('game').style.display!=='block' || !player) return;
                 let ci=null;
                 try{
-                    ci = typeof player.ci==='function' ? await player.ci() : await player.ci;
+                    ci = player.ciPromise ? await player.ciPromise : (typeof player.ci==='function' ? await player.ci() : await player.ci);
                     if(!ci && player.layers) ci = player.layers.ci || null;
                 }catch(e){ ci=null; }
                 if(ci && typeof ci.sendKeyEvent==='function'){
