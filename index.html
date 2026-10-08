@@ -1167,9 +1167,9 @@
                 out('');
             }
 
-            const TUNE_DEF={cpu:'auto',cycles:'auto',rate:'auto',block:'auto',pre:'auto',worker:'on',midi:'default',sb:'sb16',opl:'auto',core:'auto'};
+            const TUNE_DEF={cpu:'auto',cycles:'auto',rate:'auto',block:'auto',pre:'auto',worker:'off',midi:'default',sb:'sb16',opl:'auto',core:'auto'};
             const tune=Object.assign({},TUNE_DEF);
-            try{ Object.assign(tune, JSON.parse(loadSetting('tune')||'{}')); }catch(e){}
+            try{ Object.assign(tune, JSON.parse(loadSetting('tune7')||'{}')); }catch(e){}
 
             // ===== Device auto-profile =====
             const CALIB_VER=1;
@@ -1653,7 +1653,7 @@
                 if(/^calibrate$/i.test(a[0])){
                     return calibrate(true).then(()=>{ out('Calibrated.','ok'); show(); });
                 }
-                if(/^reset$/i.test(a[0])){ Object.assign(tune,TUNE_DEF); saveSetting('tune',''); show(); return; }
+                if(/^reset$/i.test(a[0])){ Object.assign(tune,TUNE_DEF); saveSetting('tune7',''); show(); return; }
                 const ok={
                     cpu:v=>/^(auto|386|486|pentium|pentium_slow|pentium_mmx)$/i.test(v),
                     cycles:v=>/^(auto|max|\d+|fixed_\d+|auto_\d+(_limit_\d+)?)$/i.test(v),
@@ -1671,7 +1671,7 @@
                     if(!m||!ok[m[1].toLowerCase()]||!ok[m[1].toLowerCase()](m[2])) return out('Invalid: '+t,'err');
                     tune[m[1].toLowerCase()]=m[2].toLowerCase();
                 }
-                saveSetting('tune',JSON.stringify(tune));
+                saveSetting('tune7',JSON.stringify(tune));
                 show();
                 out('Saved. Applies the next time you RUN a program.','ok');
             };
@@ -1861,11 +1861,24 @@ ${pre}${useCd&&dirp?'cd '+dirp+'\n':''}${runLine}
                     if(bundleUrl) URL.revokeObjectURL(bundleUrl);
                     bundleUrl=URL.createObjectURL(makeBundle(ents));
                     if(window.emulators && dosSrc.pre) window.emulators.pathPrefix=dosSrc.pre;
-                    player = window.Dos(host,{
-                        style:'none', noSideBar:true, noFullscreen:true, noSocialLinks:true, preventUnload:false, clickToStart:false,
-                        emulatorFunction:(!inClaude && tune.worker!=='off')?'dosboxWorker':'dosboxDirect'
-                    });
-                    await player.run(bundleUrl);
+                    // Worker mode needs wdosbox.js on the SAME origin as this page; from a CDN the browser blocks it.
+                    // Default = main-thread ("dosboxDirect"). TUNE worker=on tries the worker and falls back automatically.
+                    const startPlayer=async(fn)=>{
+                        host.innerHTML='';
+                        player=window.Dos(host,{
+                            style:'none', noSideBar:true, noFullscreen:true, noSocialLinks:true, preventUnload:false, clickToStart:false,
+                            emulatorFunction:fn
+                        });
+                        await player.run(bundleUrl);
+                    };
+                    if(tune.worker==='on'){
+                        try{ await startPlayer('dosboxWorker'); }
+                        catch(e){
+                            out('Worker mode unavailable ('+(e&&e.message||e).toString().slice(0,60)+'...) -> main thread','yellow');
+                            try{ if(player&&player.stop) await player.stop(); }catch(_){}
+                            await startPlayer('dosboxDirect');
+                        }
+                    } else await startPlayer('dosboxDirect');
                 }catch(e){$('game').style.display='none';out('Error: '+(e&&e.message||e),'err')}
             }
 
