@@ -1223,8 +1223,9 @@
                     if(p.length===1 && /^[abd-z]$/i.test(p[0])) addDir(p[0]);
                     if(!dirs.has(lc(p))) return out(tr('invDir'), 'err');
                     cwd=p.map((x,i)=>{const f=[...dirs].find(d=>d===lc(p.slice(0,i+1)));const o=[...files.values()].map(v=>v.p.split('/')).find(s=>s[i]&&s.slice(0,i+1).join('/').toLowerCase()===f);return o?o[i]:x});
+                    return autoLoad();
                 },
-                chdir(a){ cmds.cd(a); },
+                chdir(a){ return cmds.cd(a); },
                 chcp(a){ out(tx('codePage') + (a[0] || '437')); },
                 chkdsk(){
                     out(tr('chkdskType'));
@@ -1417,7 +1418,7 @@
                 popd(){},
                 print(a){ out(tx('print', a[0] || tx('printDoc'))); },
                 prompt(a){ if(a[0]) envVars.set('PROMPT', a[0]); prompt(); },
-                pushd(a){ if(a[0]) cmds.cd(a); },
+                pushd(a){ if(a[0]) return cmds.cd(a); },
                 rd(a){ cmds.rmdir(a); },
                 rmdir(a){
                     if(!a[0]) return out(tr('reqParam'), 'err');
@@ -2046,6 +2047,13 @@ ${pre}${useCd&&dirp?'cd '+dirp+'\n':''}${runLine}
                 return null;
             }
 
+            // cd 로 a~z(c 제외) 폴더에 들어가면 아직 안 불러온 경우 자동으로 LOAD 실행
+            function autoLoad() {
+                const L = cwd.length ? String(cwd[0]).toLowerCase() : '';
+                if (!/^[abd-z]$/.test(L) || loading || location.protocol === 'file:') return;
+                for (const k of files.keys()) if (k.startsWith(L + '/')) return;
+                return cmds.load([L]);
+            }
             cmds.load = async function (a) {
                 verbose = a.some(x => /^[-\/]v$/i.test(x));
                 let L = (a.find(x => !/^[-\/]/.test(x)) || '').replace(/[:\\\/]+$/, '').toLowerCase();
@@ -2131,11 +2139,11 @@ ${pre}${useCd&&dirp?'cd '+dirp+'\n':''}${runLine}
                     if(l){
                         hist.push(l); hi=hist.length;
                         const [c,...a]=l.split(/\s+/);
-                        if(/^[a-z]:$/i.test(c) && !a.length){ cmds.cd([c[0].toLowerCase()==='c' ? 'c:' : '\\'+c[0]]); prompt(); T.scrollTop=T.scrollHeight; return; }
+                        if(/^[a-z]:$/i.test(c) && !a.length){ const r=cmds.cd([c[0].toLowerCase()==='c' ? 'c:' : '\\'+c[0]]); if(r&&r.then){ I.disabled=true; try{ await r; }finally{ I.disabled=false; I.focus(); } } prompt(); T.scrollTop=T.scrollHeight; return; }
                         const fn=cmds[c.toLowerCase()];
                         if(fn){
                             const r=fn(a);
-                            if(fn===cmds.ipconfig){ I.disabled=true; try{ await r; }finally{ I.disabled=false; I.focus(); } }
+                            if(r&&typeof r.then==='function'&&(fn===cmds.ipconfig||fn===cmds.cd||fn===cmds.chdir||fn===cmds.pushd||fn===cmds.load)){ I.disabled=true; try{ await r; }finally{ I.disabled=false; I.focus(); } }
                         } else out("'"+c+"'"+tr('notCommand'),'err');
                     }
                     prompt(); T.scrollTop=T.scrollHeight;
