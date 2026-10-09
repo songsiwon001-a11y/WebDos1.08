@@ -1172,7 +1172,7 @@
             try{ Object.assign(tune, JSON.parse(loadSetting('tune')||'{}')); }catch(e){}
 
             // ===== Device auto-profile =====
-            const CALIB_VER=1;
+            const CALIB_VER=2;
             const snap=(v,list)=>list.reduce((b,x)=>Math.abs(x-v)<Math.abs(b-v)?x:b,list[0]);
             async function benchCPU(){
                 // integer + float mix, ~120ms; returns million loop iterations per second
@@ -1214,11 +1214,11 @@
                 const CYC_MIN=10000, CYC_MAX=30000;
                 const cyc=Math.min(CYC_MAX,Math.max(CYC_MIN,Math.round(pf.score*80/1000)*1000));
                 const T={
-                    high:{cpu:'pentium', block:'2048', pre:'100'},
-                    mid: {cpu:'486',     block:'2048', pre:'150'},
+                    high:{cpu:'pentium', block:'2048', pre:'150'},
+                    mid: {cpu:'486',     block:'4096', pre:'200'},
                     low: {cpu:'486',     block:'4096', pre:'250'}
                 }[pf.tier];
-                return {cpu:T.cpu,cycles:'fixed '+cyc,rate:pf.tier==='low'?'22050':rate,block:T.block,pre:T.pre};
+                return {cpu:T.cpu,cycles:'fixed '+cyc,rate:rate,block:T.block,pre:T.pre};
             }
             const effective=(pf)=>{
                 const a=resolveProfile(pf), e={};
@@ -1812,12 +1812,10 @@ hdma=5
 sbmix=true
 oplmode=${tune.opl}
 oplemu=${tune.oplemu}
-oplrate=${eff.rate}
 [gus]
 gus=false
 [speaker]
 pcspeaker=true
-pcrate=${eff.rate}
 tandy=off
 disney=off
 [autoexec]
