@@ -1167,9 +1167,65 @@
                 out('');
             }
 
-            const TUNE_DEF={cpu:'auto',cycles:'auto',rate:'44100',block:'2048',pre:'100',worker:'on'};
+            const TUNE_DEF={cpu:'auto',cycles:'auto',rate:'auto',block:'auto',pre:'auto',worker:'on',midi:'default',sb:'sb16',opl:'auto',oplemu:'default',core:'auto',plain:'off'};
             const tune=Object.assign({},TUNE_DEF);
             try{ Object.assign(tune, JSON.parse(loadSetting('tune')||'{}')); }catch(e){}
+
+            // ===== Device auto-profile =====
+            const CALIB_VER=1;
+            const snap=(v,list)=>list.reduce((b,x)=>Math.abs(x-v)<Math.abs(b-v)?x:b,list[0]);
+            async function benchCPU(){
+                // integer + float mix, ~120ms; returns million loop iterations per second
+                const t0=performance.now(); let n=0, x=1, f=0.5;
+                while(performance.now()-t0<120){
+                    for(let i=0;i<20000;i++){ x=(x*1664525+1013904223)|0; f=f*0.999+(x&255)*0.001; }
+                    n+=20000;
+                    if(n%400000===0) await sleep(0);
+                }
+                return n/(performance.now()-t0)/1000;
+            }
+            function nativeRate(){
+                try{ const c=new (window.AudioContext||window.webkitAudioContext)(); const r=c.sampleRate; c.close(); return r; }catch(e){ return 44100; }
+            }
+            async function calibrate(force){
+                if(!force){
+                    try{ const c=JSON.parse(loadSetting('calib')||'null'); if(c&&c.v===CALIB_VER) return c; }catch(e){}
+                }
+                const runs=[]; for(let i=0;i<3;i++){ runs.push(await benchCPU()); await sleep(20); }
+                runs.sort((a,b)=>a-b);
+                const mops=runs[1];                                   // median
+                const mobile=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Mac/.test(navigator.platform));
+                const cores=navigator.hardwareConcurrency||2, mem=navigator.deviceMemory||4;
+                // score: raw speed, penalised for mobile / few cores / low memory
+                let score=mops*(mobile?0.6:1)*(cores<4?0.8:1)*(mem<4?0.8:1);
+                let tier=score>=300?'high':score>=120?'mid':'low';
+                const prof={
+                    v:CALIB_VER, mops:+mops.toFixed(0), score:+score.toFixed(0), tier, mobile, cores, mem,
+                    nativeRate:nativeRate(), iso:!!window.crossOriginIsolated
+                };
+                saveSetting('calib',JSON.stringify(prof));
+                return prof;
+            }
+            // tier -> concrete values (user TUNE overrides win)
+            function resolveProfile(pf){
+                const rate=String(snap(pf.nativeRate,[22050,44100,48000]));
+                // Speed scales with the device but is clamped: never above CYC_MAX (games run too fast / waste CPU),
+                // never below CYC_MIN (games too slow). Fixed cycles = same game speed on every device.
+                const CYC_MIN=10000, CYC_MAX=30000;
+                const cyc=Math.min(CYC_MAX,Math.max(CYC_MIN,Math.round(pf.score*80/1000)*1000));
+                const T={
+                    high:{cpu:'pentium', block:'2048', pre:'100'},
+                    mid: {cpu:'486',     block:'2048', pre:'150'},
+                    low: {cpu:'486',     block:'4096', pre:'250'}
+                }[pf.tier];
+                return {cpu:T.cpu,cycles:'fixed '+cyc,rate:pf.tier==='low'?'22050':rate,block:T.block,pre:T.pre};
+            }
+            const effective=(pf)=>{
+                const a=resolveProfile(pf), e={};
+                for(const k of ['cpu','cycles','rate','block','pre'])
+                    e[k]=tune[k]==='auto'?a[k]:(k==='cycles'&&/^\d+$/.test(tune[k])?'fixed '+tune[k]:tune[k].replace(/_/g,' '));
+                return e;
+            };
 
             const cmds={
                 help(a){ 
@@ -1581,23 +1637,37 @@
 
             cmds.tune=function(a){
                 const show=()=>{
-                    out('TUNE  cpu='+tune.cpu+'  cycles='+tune.cycles+'  rate='+tune.rate+'  block='+tune.block+'  pre='+tune.pre+'  worker='+tune.worker,'cyan');
+                    try{ const c=JSON.parse(loadSetting('calib')||'null'); if(c){ const e=effective(c);
+                        out('DEVICE tier='+c.tier+' score='+c.score+' ('+c.mops+' Mops, cores='+c.cores+(c.mobile?', mobile':'')+', audio='+c.nativeRate+'Hz)','yellow');
+                        out('USING  cpu='+e.cpu+'  cycles='+e.cycles+'  rate='+e.rate+'  block='+e.block+'  pre='+e.pre,'ok'); } }catch(e){}
+                    out('TUNE  cpu='+tune.cpu+'  cycles='+tune.cycles+'  rate='+tune.rate+'  block='+tune.block+'  pre='+tune.pre+'  worker='+tune.worker+'  midi='+tune.midi+'  sb='+tune.sb+'  opl='+tune.opl+'  oplemu='+tune.oplemu+'  core='+tune.core+'  plain='+tune.plain,'cyan');
                 };
                 if(!a.length){
                     show();
                     out('TUNE cpu=auto|386|486|pentium|pentium_slow  cycles=auto|max|20000|fixed_20000','hi');
                     out('TUNE rate=11025|22050|44100|48000  block=1024|2048|4096  pre=10..500  worker=on|off','hi');
-                    out('TUNE RESET   (applies on next RUN)','hi');
+                    out('TUNE plain=on   (DOSBox defaults only: no cpu/mixer/sound overrides - closest to dos.zone)','hi');
+                    out('TUNE midi=default|none  sb=sb16|sbpro2|sb1|none  opl=auto|opl2|opl3|none  oplemu=default|compat|fast|mame|nuked  core=auto|normal|dynamic|simple','hi');
+                    out('TUNE CALIBRATE (re-measure this device)   TUNE RESET (back to auto)   [applies on next RUN]','hi');
                     return;
+                }
+                if(/^calibrate$/i.test(a[0])){
+                    return calibrate(true).then(()=>{ out('Calibrated.','ok'); show(); });
                 }
                 if(/^reset$/i.test(a[0])){ Object.assign(tune,TUNE_DEF); saveSetting('tune',''); show(); return; }
                 const ok={
                     cpu:v=>/^(auto|386|486|pentium|pentium_slow|pentium_mmx)$/i.test(v),
                     cycles:v=>/^(auto|max|\d+|fixed_\d+|auto_\d+(_limit_\d+)?)$/i.test(v),
-                    rate:v=>['8000','11025','16000','22050','32000','44100','48000'].includes(v),
-                    block:v=>['256','512','1024','2048','4096','8192'].includes(v),
-                    pre:v=>/^\d{1,3}$/.test(v)&&+v>=10&&+v<=500,
-                    worker:v=>/^(on|off)$/i.test(v)
+                    rate:v=>v==='auto'||['8000','11025','16000','22050','32000','44100','48000'].includes(v),
+                    block:v=>v==='auto'||['256','512','1024','2048','4096','8192'].includes(v),
+                    pre:v=>v==='auto'||(/^\d{1,3}$/.test(v)&&+v>=10&&+v<=500),
+                    worker:v=>/^(on|off)$/i.test(v),
+                    midi:v=>/^(default|none)$/i.test(v),
+                    sb:v=>/^(sb16|sbpro2|sbpro1|sb2|sb1|none)$/i.test(v),
+                    opl:v=>/^(auto|opl2|dualopl2|opl3|none)$/i.test(v),
+                    oplemu:v=>/^(default|compat|fast|mame|nuked)$/i.test(v),
+                    core:v=>/^(auto|normal|dynamic|simple)$/i.test(v),
+                    plain:v=>/^(on|off)$/i.test(v)
                 };
                 for(const t of a){
                     const m=/^(\w+)=(\S+)$/.exec(t);
@@ -1713,50 +1783,54 @@
                     else if(kind.boot) runLine='boot '+list.map(q).join(' ');
                     else { runLine='imgmount a '+list.map(q).join(' ')+' -t floppy\na:'; out(tx('imgMountA'), 'cyan'); }
                 }
+                const prof=await calibrate(false), eff=effective(prof);
+                out('Auto-tuned for this device: '+prof.tier+' (cycles='+eff.cycles+', '+eff.rate+'Hz)','cyan');
                 const conf=`[sdl]
 autolock=false
 [dosbox]
 captures=capture
 [cpu]
-core=auto
-cputype=${tune.cpu}
-cycles=${/^\d+$/.test(tune.cycles)?'fixed '+tune.cycles:tune.cycles.replace(/_/g,' ')}
+core=${tune.core}
+cputype=${eff.cpu}
+cycles=${eff.cycles}
 cycleup=1000
 cycledown=1000
 [mixer]
 nosound=false
-rate=${tune.rate}
-blocksize=${tune.block}
-prebuffer=${tune.pre}
+rate=${eff.rate}
+blocksize=${eff.block}
+prebuffer=${eff.pre}
 [midi]
 mpu401=intelligent
-mididevice=default
+mididevice=${tune.midi}
 [sblaster]
-sbtype=sb16
+sbtype=${tune.sb}
 sbbase=220
 irq=7
 dma=1
 hdma=5
 sbmix=true
-oplmode=auto
-oplemu=default
-oplrate=${tune.rate}
+oplmode=${tune.opl}
+oplemu=${tune.oplemu}
+oplrate=${eff.rate}
 [gus]
 gus=false
 [speaker]
 pcspeaker=true
-pcrate=${tune.rate}
+pcrate=${eff.rate}
 tandy=off
 disney=off
 [autoexec]
 @echo off
 ${pre}${useCd&&dirp?'cd '+dirp+'\n':''}${runLine}
 `;
+                const confFinal = tune.plain==='on' ? conf.replace(/\[cpu\][\s\S]*?\[autoexec\]/,'[autoexec]') : conf;
+                if(tune.plain==='on') out('PLAIN mode: DOSBox default cpu/mixer/sound settings','yellow');
                 const host=document.createElement('div'); host.style.cssText='position:absolute;inset:0';
                 $('dos').innerHTML=''; $('dos').appendChild(host); $('game').style.display='block';
                 $('sw').style.display=diskCount>1?'block':'none'; updateSwapLabel();
                 try{
-                    player = await window.Dos(host,{dosboxConf:conf,initFs:sel.map(v=>({path:rel(v.p),contents:v.d.slice()})),autoStart:true,workerThread:(!inClaude && tune.worker!=='off'),...(dosSrc.pre?{pathPrefix:dosSrc.pre,pathSuffix:''}:{})});
+                    player = await window.Dos(host,{dosboxConf:confFinal,initFs:sel.map(v=>({path:rel(v.p),contents:v.d.slice()})),autoStart:true,workerThread:(!inClaude && tune.worker!=='off'),...(dosSrc.pre?{pathPrefix:dosSrc.pre,pathSuffix:''}:{})});
                 }catch(e){$('game').style.display='none';out('Error: '+(e&&e.message||e),'err')}
             }
 
